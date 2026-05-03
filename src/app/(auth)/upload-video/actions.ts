@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getRevendaLogada } from "@/lib/auth";
+import { enviarEmailNovoVideo } from "@/lib/email";
 
 export async function registrarVideoEnviado(input: {
   arquivoPath: string;
@@ -24,6 +25,16 @@ export async function registrarVideoEnviado(input: {
   if (error) {
     return { ok: false as const, erro: error.message };
   }
+
+  await enviarEmailNovoVideo({
+    nomeEmpresa: revenda.nome_empresa,
+    nomeResponsavel: revenda.nome_responsavel,
+    cidade: revenda.cidade,
+    estado: revenda.estado,
+    vendedorWhatsapp: revenda.vendedor_whatsapp,
+    nomeArquivo: input.nomeArquivo,
+    enviadoEm: new Date(),
+  });
 
   revalidatePath("/upload-video");
   return { ok: true as const };

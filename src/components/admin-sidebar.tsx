@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Building2,
-  FolderArchive,
   Video,
   LogOut,
 } from "lucide-react";
@@ -14,7 +13,6 @@ import { logout } from "@/app/(auth)/actions";
 const links = [
   { href: "/admin", label: "Dashboard", Icon: LayoutDashboard, exact: true },
   { href: "/admin/revendas", label: "Revendas", Icon: Building2 },
-  { href: "/admin/materiais", label: "Materiais", Icon: FolderArchive },
   { href: "/admin/videos", label: "Vídeos", Icon: Video },
 ];
 

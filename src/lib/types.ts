@@ -11,17 +11,6 @@ export type Revenda = {
   created_at: string;
 };
 
-export type Material = {
-  id: string;
-  titulo: string;
-  descricao: string | null;
-  categoria: "proposta" | "video" | "foto" | "manual";
-  arquivo_url: string;
-  arquivo_path: string | null;
-  tamanho_bytes: number | null;
-  created_at: string;
-};
-
 export type StatusVideo = "pendente" | "aprovado" | "pago";
 
 export type VideoInstalacao = {
@@ -41,16 +30,6 @@ export type Admin = {
   nome: string | null;
   created_at: string;
 };
-
-export type CategoriaMaterial = Material["categoria"];
-
-export const CATEGORIAS_MATERIAL: { value: CategoriaMaterial; label: string }[] =
-  [
-    { value: "proposta", label: "Propostas" },
-    { value: "video", label: "Vídeos" },
-    { value: "foto", label: "Fotos" },
-    { value: "manual", label: "Manuais" },
-  ];
 
 export function emailDaRevenda(nomeEmpresa: string) {
   return `${nomeEmpresa.toLowerCase().trim()}@revenda.zelo.local`;

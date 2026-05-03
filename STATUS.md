@@ -1,5 +1,44 @@
 # STATUS — Zelo Portal
 
+## 🆕 Mudanças desta rodada (2026-05-03)
+
+### Home da revenda — 6 botões reordenados
+- 4 dos 6 botões agora apontam para pastas do **Google Drive** e abrem em nova aba (`target="_blank" rel="noopener noreferrer"`).
+- Nova ordem: Pedir Orçamento → Comprar Peças → **Vídeos e Fotos que estão Bombando!!!** (com badge "🔥 NOVO" e `ring-2 ring-zelo-yellow`) → Modelos de Proposta → Manuais e PDFs → Vídeos e Fotos Diversas.
+- Ícones: `ShoppingCart`, `Wrench`, `Flame`, `FileText`, `BookOpen`, `Images` (todos `lucide-react`).
+
+### Página `/materiais` removida
+- Pastas deletadas: `src/app/(auth)/materiais/` e `src/app/admin/(panel)/materiais/`.
+- Item "Materiais" removido da `AdminSidebar` (`src/components/admin-sidebar.tsx`).
+- Card "Materiais cadastrados" removido do dashboard admin (`src/app/admin/(panel)/page.tsx`) — agora 3 cards.
+- Tipos `Material`, `CategoriaMaterial`, `CATEGORIAS_MATERIAL` removidos de `src/lib/types.ts` (não eram mais referenciados).
+- ⚠️ A tabela `materiais` e o bucket `materiais` no Supabase **foram preservados** (não dropados).
+
+### Email automático no upload de vídeo (Resend)
+- Pacote `resend@^6.12.2` adicionado ao `package.json`.
+- Novo módulo `src/lib/email.ts` com `enviarEmailNovoVideo(payload)`:
+  - Inicializa `Resend(process.env.RESEND_API_KEY)`.
+  - Envia HTML responsivo (com botão amarelo "Ver no painel admin" → `/admin/videos`).
+  - **Timeout de 5s** (`Promise.race` interno) — não bloqueia o upload.
+  - **Try/catch global** — falha de envio é logada mas NÃO quebra o fluxo do upload.
+  - Se `RESEND_API_KEY` ainda for o placeholder, faz `console.log` e retorna sem enviar.
+- `src/app/(auth)/upload-video/actions.ts` chama `enviarEmailNovoVideo()` após o `INSERT` em `videos_instalacao`.
+- Novas env vars em `.env.local` (placeholders — o usuário precisa trocar):
+  - `RESEND_API_KEY=re_xxxxx_PLACEHOLDER`
+  - `EMAIL_ADMIN=leonardo.tanus@zeloprotege.com`
+  - `EMAIL_FROM=Zelo Portal <onboarding@resend.dev>` (funciona em modo teste sem domínio verificado)
+
+### Validação
+- `pnpm build` passa sem erros (11 rotas, materiais sumiu como esperado).
+
+### Ações pendentes para o usuário (esta rodada)
+1. Criar conta em <https://resend.com> e gerar uma API key (`re_…`).
+2. Substituir `RESEND_API_KEY` no `.env.local` pela chave real.
+3. (Opcional) Verificar um domínio próprio na Resend e trocar `EMAIL_FROM` para algo como `Zelo Portal <noreply@seudominio.com>`. Sem isso, o `onboarding@resend.dev` só envia para o email cadastrado na conta Resend.
+4. Quando subir pra Vercel, replicar `RESEND_API_KEY`, `EMAIL_ADMIN` e `EMAIL_FROM` em Production/Preview/Development.
+
+---
+
 ## ✅ Concluído
 
 ### Setup do projeto

@@ -1,16 +1,15 @@
-import { Building2, FolderArchive, Video, CheckCircle2 } from "lucide-react";
+import { Building2, Video, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Dashboard — Admin Zelo" };
 
 async function getStats() {
   const supabase = await createClient();
-  const [revendas, materiais, pendentes, aprovados] = await Promise.all([
+  const [revendas, pendentes, aprovados] = await Promise.all([
     supabase
       .from("revendas")
       .select("id", { count: "exact", head: true })
       .eq("ativa", true),
-    supabase.from("materiais").select("id", { count: "exact", head: true }),
     supabase
       .from("videos_instalacao")
       .select("id", { count: "exact", head: true })
@@ -23,7 +22,6 @@ async function getStats() {
 
   return {
     revendas: revendas.count ?? 0,
-    materiais: materiais.count ?? 0,
     pendentes: pendentes.count ?? 0,
     aprovados: aprovados.count ?? 0,
   };
@@ -38,12 +36,6 @@ export default async function AdminDashboard() {
       value: stats.revendas,
       Icon: Building2,
       cor: "bg-yellow-50 text-yellow-700",
-    },
-    {
-      label: "Materiais cadastrados",
-      value: stats.materiais,
-      Icon: FolderArchive,
-      cor: "bg-blue-50 text-blue-700",
     },
     {
       label: "Vídeos pendentes",
@@ -63,10 +55,10 @@ export default async function AdminDashboard() {
     <div className="p-8">
       <h1 className="mb-1 text-2xl font-extrabold text-zelo-dark">Dashboard</h1>
       <p className="mb-8 text-sm text-zinc-500">
-        Visão geral das revendas, materiais e vídeos enviados.
+        Visão geral das revendas e vídeos enviados.
       </p>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map(({ label, value, Icon, cor }) => (
           <div
             key={label}
