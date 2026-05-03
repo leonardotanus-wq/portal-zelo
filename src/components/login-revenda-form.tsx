@@ -2,9 +2,11 @@
 
 import { useActionState } from "react";
 import { Loader2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { loginRevenda } from "@/app/(public)/actions";
+
+const inputClass =
+  "h-12 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base text-zelo-dark transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
 
 export function LoginRevendaForm() {
   const [state, formAction, pending] = useActionState(loginRevenda, {});
@@ -26,13 +28,13 @@ export function LoginRevendaForm() {
         <Label htmlFor="usuario" className="text-sm font-semibold text-zelo-dark">
           Sua empresa
         </Label>
-        <Input
+        <input
           id="usuario"
           name="usuario"
           required
           autoComplete="username"
           placeholder="Ex: jkportoes"
-          className="h-12 text-base"
+          className={inputClass}
         />
       </div>
 
@@ -40,13 +42,13 @@ export function LoginRevendaForm() {
         <Label htmlFor="senha" className="text-sm font-semibold text-zelo-dark">
           Senha
         </Label>
-        <Input
+        <input
           id="senha"
           name="senha"
           type="password"
           required
           autoComplete="current-password"
-          className="h-12 text-base"
+          className={inputClass}
         />
       </div>
 

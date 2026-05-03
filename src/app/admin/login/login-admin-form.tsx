@@ -2,9 +2,11 @@
 
 import { useActionState } from "react";
 import { Loader2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { loginAdmin } from "./actions";
+
+const inputClass =
+  "h-12 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base text-zelo-dark transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
 
 export function LoginAdminForm({ erroInicial }: { erroInicial?: string }) {
   const [state, formAction, pending] = useActionState(loginAdmin, {
@@ -27,25 +29,25 @@ export function LoginAdminForm({ erroInicial }: { erroInicial?: string }) {
 
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
-        <Input
+        <input
           id="email"
           name="email"
           type="email"
           required
           autoComplete="username"
-          className="h-12 text-base"
+          className={inputClass}
         />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="senha">Senha</Label>
-        <Input
+        <input
           id="senha"
           name="senha"
           type="password"
           required
           autoComplete="current-password"
-          className="h-12 text-base"
+          className={inputClass}
         />
       </div>
 
