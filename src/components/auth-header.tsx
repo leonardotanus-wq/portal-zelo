@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { logout } from "@/app/(auth)/actions";
@@ -7,8 +8,13 @@ export function AuthHeader({ nomeEmpresa }: { nomeEmpresa: string }) {
     <header className="sticky top-0 z-40 w-full border-b border-zinc-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <Link href="/home" className="flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="Zelo" className="h-9 w-auto" />
+          <Image
+            src="/logo.png"
+            alt="Zelo"
+            width={2041}
+            height={684}
+            className="h-9 w-auto"
+          />
         </Link>
         <div className="flex items-center gap-3">
           <span className="hidden text-sm text-zelo-dark sm:inline">

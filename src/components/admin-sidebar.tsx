@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -24,8 +25,13 @@ export function AdminSidebar({ email }: { email: string }) {
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-zinc-200 bg-white">
       <div className="border-b border-zinc-200 p-6">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.svg" alt="Zelo" className="h-9 w-auto" />
+        <Image
+          src="/logo.png"
+          alt="Zelo"
+          width={2041}
+          height={684}
+          className="h-9 w-auto"
+        />
         <p className="mt-3 truncate text-xs text-zinc-500">{email}</p>
       </div>
       <nav className="flex-1 space-y-1 p-3">

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LoginAdminForm } from "./login-admin-form";
@@ -32,10 +33,11 @@ export default async function AdminLoginPage({
     <div className="flex min-h-screen items-center justify-center bg-zelo-dark px-4">
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo-white.svg"
+          <Image
+            src="/logo-white.png"
             alt="Zelo"
+            width={2041}
+            height={684}
             className="mx-auto h-10 w-auto"
           />
         </div>

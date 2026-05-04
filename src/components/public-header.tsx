@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export function PublicHeader() {
@@ -5,8 +6,14 @@ export function PublicHeader() {
     <header className="sticky top-0 z-40 w-full border-b border-zinc-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2" aria-label="Zelo Portal">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="Zelo Equipamentos" className="h-9 w-auto" />
+          <Image
+            src="/logo.png"
+            alt="Zelo Equipamentos"
+            width={2041}
+            height={684}
+            preload
+            className="h-9 w-auto"
+          />
         </Link>
         <a
           href="#login"
