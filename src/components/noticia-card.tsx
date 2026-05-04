@@ -2,10 +2,15 @@
 
 import { useState } from "react";
 import { Newspaper } from "lucide-react";
-import { formatarData } from "@/lib/format";
 import type { Noticia } from "@/lib/rss";
 
-export function NoticiaCard({ noticia }: { noticia: Noticia }) {
+export function NoticiaCard({
+  noticia,
+  destaque = false,
+}: {
+  noticia: Noticia;
+  destaque?: boolean;
+}) {
   const [imgErro, setImgErro] = useState(false);
   const mostrarImagem = noticia.image && !imgErro;
 
@@ -14,45 +19,47 @@ export function NoticiaCard({ noticia }: { noticia: Noticia }) {
       href={noticia.link}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex flex-col overflow-hidden rounded-xl bg-white ring-1 ring-zinc-200 transition hover:shadow-lg hover:-translate-y-0.5"
+      className={`group relative flex min-h-[280px] flex-col justify-end overflow-hidden rounded-xl bg-zelo-dark text-white shadow-md transition duration-200 hover:scale-[1.02] hover:brightness-110 ${
+        destaque ? "md:row-span-2" : ""
+      }`}
     >
-      <div className="relative aspect-[16/9] w-full overflow-hidden bg-zinc-100">
-        {mostrarImagem ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={noticia.image!}
-            alt=""
-            loading="lazy"
-            className="h-full w-full object-cover"
-            onError={() => setImgErro(true)}
+      {mostrarImagem ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={noticia.image!}
+          alt=""
+          loading="lazy"
+          className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105"
+          onError={() => setImgErro(true)}
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Newspaper
+            className="h-20 w-20 text-zelo-yellow opacity-20"
+            strokeWidth={1.2}
           />
-        ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-zelo-dark">
-            <Newspaper
-              className="h-20 w-20 text-zelo-yellow"
-              strokeWidth={1.2}
-            />
-            <span className="text-2xl font-extrabold tracking-widest text-zelo-yellow/40">
-              NOTÍCIA
-            </span>
-          </div>
-        )}
-        <span className="absolute left-3 top-3 inline-flex max-w-[80%] truncate rounded-full bg-zelo-dark/90 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
-          {noticia.source}
-        </span>
-      </div>
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <h3 className="line-clamp-2 text-base font-bold text-zelo-dark group-hover:text-zelo-dark/80">
+        </div>
+      )}
+
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+
+      <span className="absolute left-3 top-3 z-10 inline-flex max-w-[calc(100%-1.5rem)] truncate rounded-full bg-zelo-yellow px-3 py-1 text-xs font-semibold text-zelo-dark shadow-sm">
+        {noticia.source}
+      </span>
+
+      <div className="relative z-10 flex flex-col gap-2 p-4 md:p-5">
+        <h3
+          className={`line-clamp-3 font-extrabold leading-tight text-white drop-shadow ${
+            destaque ? "text-2xl md:text-3xl" : "text-xl md:text-2xl"
+          }`}
+        >
           {noticia.title}
         </h3>
         {noticia.description && (
-          <p className="line-clamp-3 text-sm text-zinc-600">
+          <p className="line-clamp-2 text-sm text-zinc-200/90">
             {noticia.description}
           </p>
         )}
-        <p className="mt-auto pt-2 text-xs text-zinc-500">
-          {formatarData(noticia.pubDate)}
-        </p>
       </div>
     </a>
   );

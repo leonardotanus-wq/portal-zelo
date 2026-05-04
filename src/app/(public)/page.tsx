@@ -19,9 +19,9 @@ async function GridNoticias() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-      {noticias.map((n) => (
-        <NoticiaCard key={n.id} noticia={n} />
+    <div className="grid grid-cols-1 gap-5 md:grid-flow-dense md:auto-rows-[280px] md:grid-cols-2">
+      {noticias.map((n, i) => (
+        <NoticiaCard key={n.id} noticia={n} destaque={i === 0} />
       ))}
     </div>
   );
@@ -29,19 +29,14 @@ async function GridNoticias() {
 
 function GridSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 md:auto-rows-[280px] md:grid-cols-2">
       {Array.from({ length: 6 }).map((_, i) => (
         <div
           key={i}
-          className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-200"
-        >
-          <div className="aspect-[16/9] w-full animate-pulse bg-zinc-100" />
-          <div className="space-y-2 p-4">
-            <div className="h-4 w-3/4 animate-pulse rounded bg-zinc-100" />
-            <div className="h-4 w-5/6 animate-pulse rounded bg-zinc-100" />
-            <div className="h-3 w-2/5 animate-pulse rounded bg-zinc-100" />
-          </div>
-        </div>
+          className={`min-h-[280px] animate-pulse rounded-xl bg-zinc-200 ${
+            i === 0 ? "md:row-span-2" : ""
+          }`}
+        />
       ))}
     </div>
   );
