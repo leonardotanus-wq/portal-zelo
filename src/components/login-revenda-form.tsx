@@ -26,14 +26,14 @@ export function LoginRevendaForm() {
 
       <div className="space-y-2">
         <Label htmlFor="usuario" className="text-sm font-semibold text-zelo-dark">
-          Sua empresa
+          Login
         </Label>
         <input
           id="usuario"
           name="usuario"
           required
           autoComplete="username"
-          placeholder="Ex: jkportoes"
+          placeholder="Digite seu login"
           className={inputClass}
         />
       </div>
