@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Building2,
   Video,
+  Activity,
   LogOut,
 } from "lucide-react";
 import { logout } from "@/app/(auth)/actions";
@@ -14,6 +15,7 @@ const links = [
   { href: "/admin", label: "Dashboard", Icon: LayoutDashboard, exact: true },
   { href: "/admin/revendas", label: "Revendas", Icon: Building2 },
   { href: "/admin/videos", label: "Vídeos", Icon: Video },
+  { href: "/admin/engajamento", label: "Engajamento", Icon: Activity },
 ];
 
 export function AdminSidebar({ email }: { email: string }) {

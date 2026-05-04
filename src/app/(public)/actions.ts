@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { emailDaRevenda } from "@/lib/types";
+import { trackEvento } from "@/lib/tracking";
 
 type LoginState = {
   erro?: string;
@@ -20,7 +21,7 @@ export async function loginRevenda(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: emailDaRevenda(usuario),
     password: senha,
   });
@@ -29,6 +30,17 @@ export async function loginRevenda(
     return {
       erro: "Usuário ou senha incorretos. Verifique com seu vendedor.",
     };
+  }
+
+  if (data.user) {
+    const { data: revenda } = await supabase
+      .from("revendas")
+      .select("id")
+      .eq("user_id", data.user.id)
+      .maybeSingle();
+    if (revenda) {
+      await trackEvento(revenda, "login");
+    }
   }
 
   redirect("/home");

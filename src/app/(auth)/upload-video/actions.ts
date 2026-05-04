@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getRevendaLogada } from "@/lib/auth";
 import { enviarEmailNovoVideo } from "@/lib/email";
+import { trackEvento } from "@/lib/tracking";
 
 export async function registrarVideoEnviado(input: {
   arquivoPath: string;
@@ -25,6 +26,8 @@ export async function registrarVideoEnviado(input: {
   if (error) {
     return { ok: false as const, erro: error.message };
   }
+
+  await trackEvento(revenda, "upload_video", input.nomeArquivo);
 
   await enviarEmailNovoVideo({
     nomeEmpresa: revenda.nome_empresa,

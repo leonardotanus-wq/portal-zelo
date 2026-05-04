@@ -1,6 +1,61 @@
 # STATUS — Zelo Portal
 
-## 🆕 Mudanças desta rodada (2026-05-03)
+## 🆕 Mudanças desta rodada (2026-05-03 — engajamento + tracking)
+
+### Sistema de tracking de revendas
+- **Migration SQL** em `supabase/migrations/0002_tracking.sql` (NÃO executada — rodar manualmente no SQL Editor):
+  - Tabela `eventos_revenda` (login, page_view, click_botao, logout, upload_video) com índices em `revenda_id`, `created_at` e `tipo`
+  - Colunas extras em `revendas`: `last_seen_at`, `ultimo_login_at`, `total_logins`
+  - RLS: admin lê tudo (`is_admin()`), revenda só insere os próprios eventos
+  - Função `incrementar_total_logins(revenda_id_param)`
+  - Função `top_revendas_semana()` usada pelo cron
+- **Helper** `src/lib/tracking.ts` — `trackEvento(revenda, tipo, detalhe?)` registra o evento e atualiza `last_seen_at` (ou `total_logins` em login). Tudo encapsulado em try/catch — nunca bloqueia o fluxo principal.
+- Pontos rastreados:
+  - **Login**: `src/app/(public)/actions.ts` — após `signInWithPassword` ok, busca a revenda e chama `trackEvento(revenda, "login")`
+  - **Logout**: `src/app/(auth)/actions.ts` — registra antes de `signOut()`
+  - **Page view**: `src/app/(auth)/layout.tsx` — usa header `x-pathname` (setado no middleware) com fallback em `referer`
+  - **Upload de vídeo**: `src/app/(auth)/upload-video/actions.ts` — após o INSERT, antes do email
+  - **Cliques nos 6 botões da home**: novo `src/components/home-cards.tsx` (Client Component) chama `POST /api/track-click` via `navigator.sendBeacon` (com fallback para `fetch({ keepalive: true })`) e DEPOIS abre o link
+
+### Endpoint de click tracking
+- `src/app/api/track-click/route.ts` (POST) — exige sessão autenticada, valida `detalhe` e chama `trackEvento(revenda, "click_botao", slug)`. Slug limitado a 80 chars.
+
+### Middleware (`src/lib/supabase/middleware.ts`)
+- Agora seta `x-pathname` nos headers da request para uso na page_view.
+- `PUBLIC_PREFIXES` adicionado: `/api/cron/` é considerada rota pública (não exige sessão; protegida por `CRON_SECRET`).
+
+### Painel admin de Engajamento
+- Nova rota `/admin/engajamento` (`src/app/admin/(panel)/engajamento/page.tsx`):
+  - 4 KPIs: logins hoje, logins na semana, revendas ativas (7d), revendas sumidas (14d+ — destaque vermelho)
+  - **Ranking do mês** (top 10 por logins, com cliques + último login relativo via `date-fns/formatDistanceToNow`)
+  - **Quem logou** — Tabs (hoje / esta semana) com lista nominal e tempo relativo
+  - **Revendas sumidas** (14+ dias ou nunca logaram) — botão amarelo "Avisar vendedor" abre `wa.me/{vendedor_whatsapp}` com mensagem pronta ("…não acessa o portal Zelo há X dias…")
+  - **Cliques por botão** — barras CSS nativas (sem nova dependência), agregadas dos 6 slugs (orcamento, pecas, videos_bombando, modelos_proposta, manuais, videos_diversas)
+- Sidebar admin (`src/components/admin-sidebar.tsx`) com novo link "Engajamento" (ícone `Activity`).
+
+### Email semanal automático (Vercel Cron)
+- `vercel.json` — cron `0 12 * * 1` (segunda 9h BRT / 12h UTC) → `/api/cron/relatorio-semanal`.
+- `src/app/api/cron/relatorio-semanal/route.ts` (GET):
+  - Exige `Authorization: Bearer ${CRON_SECRET}` (Vercel envia automaticamente)
+  - Usa `createAdminClient()` (service role) para agregar 7d: logins, cliques, revendas ativas, sumidas (14d+) e top 5 (`top_revendas_semana()`)
+  - Email HTML responsivo com link CTA amarelo para `/admin/engajamento`
+  - Em ambiente sem `RESEND_API_KEY` real, retorna `{ ok: true, enviado: false, motivo: "config", stats: {...} }` (não falha)
+- Variáveis novas em `.env.local`:
+  - `CRON_SECRET=mude-isso-pra-uma-string-aleatoria-grande_PLACEHOLDER`
+  - `NEXT_PUBLIC_SITE_URL=http://localhost:3000`
+
+### Validação
+- `pnpm build` passa sem erros (14 rotas dinâmicas, incluindo `/admin/engajamento`, `/api/track-click` e `/api/cron/relatorio-semanal`).
+
+### Ações pendentes para o usuário (esta rodada)
+1. **Rodar a migration**: copiar o conteúdo de `supabase/migrations/0002_tracking.sql` no SQL Editor do Supabase e executar.
+2. **Trocar `CRON_SECRET`** no `.env.local` por uma string aleatória forte (`openssl rand -base64 32`).
+3. Em produção (Vercel) replicar `CRON_SECRET` e `NEXT_PUBLIC_SITE_URL` (com a URL real do deploy) em Production/Preview/Development.
+4. Pra testar a página `/admin/engajamento` localmente sem dados: faça alguns logins/cliques pra popular `eventos_revenda`.
+
+---
+
+## 🗂️ Mudanças anteriores (2026-05-03)
 
 ### Home da revenda — 6 botões reordenados
 - 4 dos 6 botões agora apontam para pastas do **Google Drive** e abrem em nova aba (`target="_blank" rel="noopener noreferrer"`).
