@@ -167,40 +167,143 @@ async function fetchNoticias(): Promise<Noticia[]> {
   return top;
 }
 
-async function preencherImagensFaltantes(noticias: Noticia[]): Promise<void> {
-  const semImagem = noticias.filter((n) => !n.image && n.link);
-  if (semImagem.length === 0) return;
+const USER_AGENT =
+  "Mozilla/5.0 (compatible; ZeloPortalBot/1.0; +https://portal.zeloprotege.com)";
 
-  const resultados = await Promise.allSettled(
-    semImagem.map((n) => buscarOgImageComTimeout(n.link, 3000)),
-  );
+const PADROES_LOGO = [
+  /\blogo\b/i,
+  /\bfavicon\b/i,
+  /\bicon\b/i,
+  /google\.com\/logos/i,
+  /static\.googleusercontent\.com/i,
+  /agenciabrasil\.ebc\.com\.br\/sites\/default\/files\/styles\/logo/i,
+];
 
-  let sucesso = 0;
-  semImagem.forEach((n, i) => {
-    const r = resultados[i];
-    if (r.status === "fulfilled" && r.value) {
-      n.image = r.value;
-      sucesso++;
-    }
-  });
-  console.log(
-    `[RSS] og:image — ${sucesso}/${semImagem.length} buscadas (${noticias.length} notícias no total)`,
-  );
+const HOSTS_BLOQUEADOS_NA_RESOLUCAO =
+  /(?:^|\.)google\.com$|(?:^|\.)googleusercontent\.com$|(?:^|\.)gstatic\.com$|(?:^|\.)youtube\.com$|(?:^|\.)youtu\.be$/i;
+
+function ehGoogleNews(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === "news.google.com" || host.endsWith(".news.google.com");
+  } catch {
+    return false;
+  }
 }
 
-async function buscarOgImageComTimeout(
-  url: string,
-  timeoutMs: number,
-): Promise<string | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+function ehProvavelLogo(url: string): boolean {
+  return PADROES_LOGO.some((p) => p.test(url));
+}
+
+function resolverUrlAbsoluta(maybeRelative: string, base: string): string | null {
   try {
-    const res = await fetch(url, {
-      signal: controller.signal,
+    return new URL(maybeRelative, base).href;
+  } catch {
+    return null;
+  }
+}
+
+async function resolverLinkReal(
+  linkOriginal: string,
+  signal: AbortSignal,
+): Promise<string> {
+  if (!ehGoogleNews(linkOriginal)) return linkOriginal;
+
+  try {
+    const res = await fetch(linkOriginal, {
+      signal,
       redirect: "follow",
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; ZeloPortalBot/1.0; +https://portal.zeloprotege.com)",
+        "User-Agent": USER_AGENT,
+        Accept: "text/html,application/xhtml+xml",
+      },
+    });
+
+    const finalUrl = res.url || linkOriginal;
+    // Se a cadeia de redirects já saiu do Google, esse é o artigo real
+    if (!ehGoogleNews(finalUrl)) return finalUrl;
+
+    if (!res.ok) return linkOriginal;
+    const html = await res.text();
+
+    // 1. <link rel="canonical">
+    const canonical = html.match(
+      /<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i,
+    );
+    if (canonical?.[1]) {
+      const url = resolverUrlAbsoluta(canonical[1], finalUrl);
+      if (url && !ehGoogleNews(url)) return url;
+    }
+
+    // 2. <meta http-equiv="refresh" content="0; url=...">
+    const meta = html.match(
+      /<meta[^>]+http-equiv=["']refresh["'][^>]+content=["']\d+\s*;\s*url=([^"']+)["']/i,
+    );
+    if (meta?.[1]) {
+      const url = resolverUrlAbsoluta(meta[1], finalUrl);
+      if (url && !ehGoogleNews(url)) return url;
+    }
+
+    // 3. Primeiro <a href="https://..."> que NÃO seja de domínios do Google/YouTube
+    const aRegex = /<a\s[^>]*href=["'](https?:\/\/[^"']+)["']/gi;
+    let m: RegExpExecArray | null;
+    while ((m = aRegex.exec(html)) !== null) {
+      const candidato = m[1];
+      try {
+        const host = new URL(candidato).hostname.toLowerCase();
+        if (!HOSTS_BLOQUEADOS_NA_RESOLUCAO.test(host)) {
+          return candidato;
+        }
+      } catch {
+        // continua tentando
+      }
+    }
+
+    return linkOriginal;
+  } catch {
+    return linkOriginal;
+  }
+}
+
+async function tamanhoEhSuficiente(
+  url: string,
+  parentSignal: AbortSignal,
+): Promise<boolean> {
+  if (parentSignal.aborted) return false;
+
+  const ctrl = new AbortController();
+  const onParentAbort = () => ctrl.abort();
+  parentSignal.addEventListener("abort", onParentAbort, { once: true });
+  const timer = setTimeout(() => ctrl.abort(), 1000);
+  try {
+    const res = await fetch(url, {
+      method: "HEAD",
+      signal: ctrl.signal,
+      redirect: "follow",
+      headers: { "User-Agent": USER_AGENT },
+    });
+    if (!res.ok) return true; // servidor não suporta HEAD — dá benefício da dúvida
+    const len = Number(res.headers.get("content-length") || "0");
+    if (len > 0 && len < 5000) return false;
+    return true;
+  } catch {
+    return true;
+  } finally {
+    clearTimeout(timer);
+    parentSignal.removeEventListener("abort", onParentAbort);
+  }
+}
+
+async function buscarOgImage(
+  url: string,
+  signal: AbortSignal,
+): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      signal,
+      redirect: "follow",
+      headers: {
+        "User-Agent": USER_AGENT,
         Accept: "text/html,application/xhtml+xml",
       },
     });
@@ -209,8 +312,6 @@ async function buscarOgImageComTimeout(
     return extrairOgImage(html, res.url || url);
   } catch {
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -239,12 +340,87 @@ function extrairOgImage(html: string, baseUrl: string): string | null {
   return null;
 }
 
-function resolverUrlAbsoluta(maybeRelative: string, base: string): string | null {
+type ResultadoImagem = {
+  imagem: string | null;
+  resolveuLinkReal: boolean;
+  motivoFallback: "ok" | "sem-og" | "logo" | "muito-pequena" | "erro";
+};
+
+async function buscarImagemDaNoticia(
+  linkOriginal: string,
+  timeoutMs: number,
+): Promise<ResultadoImagem> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let resolveuLinkReal = false;
   try {
-    return new URL(maybeRelative, base).href;
+    const linkReal = await resolverLinkReal(linkOriginal, controller.signal);
+    resolveuLinkReal = linkReal !== linkOriginal;
+
+    const url = await buscarOgImage(linkReal, controller.signal);
+    if (!url) return { imagem: null, resolveuLinkReal, motivoFallback: "sem-og" };
+    if (ehProvavelLogo(url))
+      return { imagem: null, resolveuLinkReal, motivoFallback: "logo" };
+
+    const ok = await tamanhoEhSuficiente(url, controller.signal);
+    if (!ok)
+      return { imagem: null, resolveuLinkReal, motivoFallback: "muito-pequena" };
+
+    return { imagem: url, resolveuLinkReal, motivoFallback: "ok" };
   } catch {
-    return null;
+    return { imagem: null, resolveuLinkReal, motivoFallback: "erro" };
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+async function preencherImagensFaltantes(noticias: Noticia[]): Promise<void> {
+  const semImagem = noticias.filter((n) => !n.image && n.link);
+  if (semImagem.length === 0) return;
+
+  const resultados = await Promise.allSettled(
+    semImagem.map((n) => buscarImagemDaNoticia(n.link, 5000)),
+  );
+
+  let resolvidos = 0;
+  let comImagem = 0;
+  let logoFiltrado = 0;
+  let pequena = 0;
+  let semOg = 0;
+  let erro = 0;
+
+  semImagem.forEach((n, i) => {
+    const r = resultados[i];
+    if (r.status !== "fulfilled") {
+      erro++;
+      return;
+    }
+    if (r.value.resolveuLinkReal) resolvidos++;
+    if (r.value.imagem) {
+      n.image = r.value.imagem;
+      comImagem++;
+      return;
+    }
+    switch (r.value.motivoFallback) {
+      case "logo":
+        logoFiltrado++;
+        break;
+      case "muito-pequena":
+        pequena++;
+        break;
+      case "sem-og":
+        semOg++;
+        break;
+      case "erro":
+        erro++;
+        break;
+    }
+  });
+
+  const placeholder = semImagem.length - comImagem;
+  console.log(
+    `[RSS] ${noticias.length} notícias — link real resolvido: ${resolvidos}/${semImagem.length} | og:image válida: ${comImagem}/${semImagem.length} | placeholder: ${placeholder}/${semImagem.length} (logo:${logoFiltrado}, pequena:${pequena}, sem-og:${semOg}, erro:${erro})`,
+  );
 }
 
 export const getNoticias = unstable_cache(fetchNoticias, ["noticias-rss"], {
