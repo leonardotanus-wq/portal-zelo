@@ -375,11 +375,25 @@ async function buscarImagemDaNoticia(
 }
 
 async function preencherImagensFaltantes(noticias: Noticia[]): Promise<void> {
-  const semImagem = noticias.filter((n) => !n.image && n.link);
-  if (semImagem.length === 0) return;
+  // Itens vindos do Google News quase sempre devolvem o logo do agregador como
+  // og:image, mesmo após resolver o link real. Mais limpo deixar todas elas no
+  // placeholder do que arriscar mostrar o logo errado.
+  const candidatas = noticias.filter(
+    (n) => !n.image && n.link && !ehGoogleNews(n.link),
+  );
+  const puladasGoogleNews = noticias.filter(
+    (n) => !n.image && n.link && ehGoogleNews(n.link),
+  ).length;
+
+  if (candidatas.length === 0) {
+    console.log(
+      `[RSS] ${noticias.length} notícias — placeholder direto: ${puladasGoogleNews} (todas Google News)`,
+    );
+    return;
+  }
 
   const resultados = await Promise.allSettled(
-    semImagem.map((n) => buscarImagemDaNoticia(n.link, 5000)),
+    candidatas.map((n) => buscarImagemDaNoticia(n.link, 5000)),
   );
 
   let resolvidos = 0;
@@ -389,7 +403,7 @@ async function preencherImagensFaltantes(noticias: Noticia[]): Promise<void> {
   let semOg = 0;
   let erro = 0;
 
-  semImagem.forEach((n, i) => {
+  candidatas.forEach((n, i) => {
     const r = resultados[i];
     if (r.status !== "fulfilled") {
       erro++;
@@ -417,9 +431,10 @@ async function preencherImagensFaltantes(noticias: Noticia[]): Promise<void> {
     }
   });
 
-  const placeholder = semImagem.length - comImagem;
+  const placeholderPorBusca = candidatas.length - comImagem;
+  const placeholderTotal = placeholderPorBusca + puladasGoogleNews;
   console.log(
-    `[RSS] ${noticias.length} notícias — link real resolvido: ${resolvidos}/${semImagem.length} | og:image válida: ${comImagem}/${semImagem.length} | placeholder: ${placeholder}/${semImagem.length} (logo:${logoFiltrado}, pequena:${pequena}, sem-og:${semOg}, erro:${erro})`,
+    `[RSS] ${noticias.length} notícias — Google News pulado: ${puladasGoogleNews} | tentativas: ${candidatas.length} (link real: ${resolvidos}, og válida: ${comImagem}) | placeholder total: ${placeholderTotal} (logo:${logoFiltrado}, pequena:${pequena}, sem-og:${semOg}, erro:${erro})`,
   );
 }
 

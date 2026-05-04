@@ -27,11 +27,14 @@ export function NoticiaCard({ noticia }: { noticia: Noticia }) {
             onError={() => setImgErro(true)}
           />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-zelo-yellow/30 to-zinc-100 text-zelo-dark/70">
-            <Newspaper className="h-16 w-16" strokeWidth={1.5} />
-            <p className="line-clamp-1 px-4 text-center text-xs font-semibold text-zelo-dark/70">
-              {noticia.source}
-            </p>
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-zelo-dark">
+            <Newspaper
+              className="h-20 w-20 text-zelo-yellow"
+              strokeWidth={1.2}
+            />
+            <span className="text-2xl font-extrabold tracking-widest text-zelo-yellow/40">
+              NOTÍCIA
+            </span>
           </div>
         )}
         <span className="absolute left-3 top-3 inline-flex max-w-[80%] truncate rounded-full bg-zelo-dark/90 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
