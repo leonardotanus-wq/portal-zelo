@@ -1,6 +1,45 @@
 # STATUS — Zelo Portal
 
-## 🆕 Mudanças desta rodada (2026-05-03 — engajamento + tracking)
+## 🆕 Mudanças desta rodada (2026-05-04 — Jornada da Revenda)
+
+### Banco de dados
+- **Migration SQL** em `supabase/migrations/0003_jornada.sql` (NÃO executada — rodar manualmente no SQL Editor):
+  - Adiciona coluna `etapa_jornada INTEGER DEFAULT 3 CHECK (1..6)` em `revendas`.
+  - Backfill: revendas existentes ficam na etapa 3 (já têm acesso ao portal).
+
+### Constantes e tipos
+- `src/lib/jornada.ts` — `ETAPAS_JORNADA` (6 etapas: Contato → Ficha Cadastral → Acesso ao Portal → Treinamento Comercial → Primeira Venda → Curso Técnico Zelo), `TOTAL_ETAPAS`, `etapaValida()`.
+- `src/lib/types.ts` — `Revenda.etapa_jornada: number` adicionado.
+
+### Componente JornadaRevenda
+- `src/components/jornada-revenda.tsx` (Server Component), prop `etapaAtual`:
+  - **Desktop (`sm:`):** stepper horizontal com 6 círculos numerados, linhas conectoras amarelas até a etapa atual e cinza depois. Etapa atual com `animate-pulse`. Etapas concluídas com check (`lucide`). Cada círculo + label tem `title` HTML para tooltip nativo.
+  - **Mobile:** linha resumida "Sua jornada: etapa X de 6 — Nome", barra de progresso fina (`h-2 rounded-full`) e "Próxima etapa: …" abaixo.
+  - **Estado especial:** `etapaAtual === 6` mostra fundo `bg-green-50` com 🎉 e "Parabéns! Jornada Zelo concluída".
+
+### Home da revenda
+- `src/app/(auth)/home/page.tsx` agora é async, busca `getRevendaLogada()` e renderiza `<JornadaRevenda etapaAtual={...} />` acima do banner amarelo de upload de vídeo.
+
+### Admin de revendas
+- `src/app/admin/(panel)/revendas/revendas-client.tsx`:
+  - Nova coluna **"Etapa"** na tabela com badge cinza no formato `N/6 — Nome`.
+  - Componente local `<SelectEtapa>` (native `<select>` estilizado, sem dependência nova) reutilizado nos diálogos de **Criar** e **Editar** revenda.
+  - Ambos os formulários incluem o estado `etapa_jornada` (default 3).
+- `src/app/admin/(panel)/revendas/actions.ts` — `atualizarRevenda()` agora aceita e valida `etapa_jornada` (1..6); chama `revalidatePath("/home")` para refletir o banner na próxima carga.
+- `src/app/api/admin/criar-revenda/route.ts` — aceita `etapa_jornada` no payload, valida 1..6 e persiste no INSERT.
+
+### Validação
+- `pnpm build` passa sem erros (14 rotas dinâmicas).
+
+### Ações pendentes para o usuário (esta rodada)
+1. **Rodar a migration**: copiar `supabase/migrations/0003_jornada.sql` no SQL Editor do Supabase e executar.
+2. No `/admin/revendas`, editar a `jkportoes` e mudar a etapa pra 4 ou 5 pra testar.
+3. Logar como `jkportoes` e verificar o banner no `/home`.
+4. Testar mobile (DevTools mobile view) para validar a versão compacta com a barra de progresso.
+
+---
+
+## 🆕 Mudanças anteriores (2026-05-03 — engajamento + tracking)
 
 ### Sistema de tracking de revendas
 - **Migration SQL** em `supabase/migrations/0002_tracking.sql` (NÃO executada — rodar manualmente no SQL Editor):

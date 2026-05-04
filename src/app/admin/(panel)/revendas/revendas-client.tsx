@@ -16,7 +16,33 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import type { Revenda } from "@/lib/types";
+import { ETAPAS_JORNADA } from "@/lib/jornada";
 import { atualizarRevenda, alternarAtivaRevenda } from "./actions";
+
+function SelectEtapa({
+  value,
+  onChange,
+  id,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  id?: string;
+}) {
+  return (
+    <select
+      id={id}
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      className="flex h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zelo-dark shadow-sm outline-none focus:border-zelo-yellow focus:ring-2 focus:ring-zelo-yellow/30"
+    >
+      {ETAPAS_JORNADA.map((e) => (
+        <option key={e.numero} value={e.numero}>
+          {e.numero} — {e.nome}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 type Props = { revendas: Revenda[] };
 
@@ -30,6 +56,7 @@ function NovaRevendaDialog({ onCriou }: { onCriou: () => void }) {
     estado: "",
     vendedor_nome: "",
     vendedor_whatsapp: "",
+    etapa_jornada: 3,
   });
 
   function reset() {
@@ -40,6 +67,7 @@ function NovaRevendaDialog({ onCriou }: { onCriou: () => void }) {
       estado: "",
       vendedor_nome: "",
       vendedor_whatsapp: "",
+      etapa_jornada: 3,
     });
   }
 
@@ -170,6 +198,14 @@ function NovaRevendaDialog({ onCriou }: { onCriou: () => void }) {
               placeholder="5531999999999"
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="etapa_jornada">Etapa da jornada</Label>
+            <SelectEtapa
+              id="etapa_jornada"
+              value={form.etapa_jornada}
+              onChange={(n) => setForm((f) => ({ ...f, etapa_jornada: n }))}
+            />
+          </div>
           <DialogFooter>
             <button
               type="submit"
@@ -201,6 +237,7 @@ function EditarRevendaDialog({
     estado: revenda.estado ?? "",
     vendedor_nome: revenda.vendedor_nome ?? "",
     vendedor_whatsapp: revenda.vendedor_whatsapp ?? "",
+    etapa_jornada: revenda.etapa_jornada ?? 3,
   });
 
   function submit(e: React.FormEvent) {
@@ -213,6 +250,7 @@ function EditarRevendaDialog({
         estado: form.estado || null,
         vendedor_nome: form.vendedor_nome || null,
         vendedor_whatsapp: form.vendedor_whatsapp || null,
+        etapa_jornada: form.etapa_jornada,
       });
       if (!res.ok) {
         toast.error(res.erro);
@@ -294,6 +332,13 @@ function EditarRevendaDialog({
               placeholder="5531999999999"
             />
           </div>
+          <div className="space-y-2">
+            <Label>Etapa da jornada</Label>
+            <SelectEtapa
+              value={form.etapa_jornada}
+              onChange={(n) => setForm((f) => ({ ...f, etapa_jornada: n }))}
+            />
+          </div>
           <DialogFooter>
             <button
               type="submit"
@@ -346,6 +391,7 @@ export function RevendasClient({ revendas }: Props) {
               <th className="px-4 py-3">Empresa</th>
               <th className="px-4 py-3">Cidade</th>
               <th className="px-4 py-3">Vendedor</th>
+              <th className="px-4 py-3">Etapa</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3 text-right">Ações</th>
             </tr>
@@ -354,7 +400,7 @@ export function RevendasClient({ revendas }: Props) {
             {revendas.length === 0 && (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   className="px-4 py-8 text-center text-sm text-zinc-500"
                 >
                   Nenhuma revenda cadastrada ainda.
@@ -383,6 +429,17 @@ export function RevendasClient({ revendas }: Props) {
                       {r.vendedor_whatsapp}
                     </div>
                   )}
+                </td>
+                <td className="px-4 py-3">
+                  {(() => {
+                    const n = r.etapa_jornada ?? 3;
+                    const info = ETAPAS_JORNADA[Math.min(Math.max(n, 1), ETAPAS_JORNADA.length) - 1];
+                    return (
+                      <Badge className="bg-zinc-100 text-zinc-700">
+                        {n}/{ETAPAS_JORNADA.length} — {info.nome}
+                      </Badge>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-3">
                   {r.ativa ? (

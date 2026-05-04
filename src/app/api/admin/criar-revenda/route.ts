@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { emailDaRevenda } from "@/lib/types";
+import { etapaValida } from "@/lib/jornada";
 
 type Payload = {
   nome_empresa: string;
@@ -10,6 +11,7 @@ type Payload = {
   estado?: string;
   vendedor_nome?: string;
   vendedor_whatsapp?: string;
+  etapa_jornada?: number;
 };
 
 function validarNome(input: string) {
@@ -68,6 +70,15 @@ export async function POST(request: Request) {
     );
   }
 
+  const etapa_jornada =
+    body.etapa_jornada === undefined ? 3 : Number(body.etapa_jornada);
+  if (!etapaValida(etapa_jornada)) {
+    return NextResponse.json(
+      { erro: "Etapa da jornada inválida (use 1 a 6)." },
+      { status: 400 },
+    );
+  }
+
   const adminClient = createAdminClient();
   const email = emailDaRevenda(nome_empresa);
 
@@ -109,6 +120,7 @@ export async function POST(request: Request) {
       estado: body.estado?.trim() || null,
       vendedor_nome: body.vendedor_nome?.trim() || null,
       vendedor_whatsapp: vendedor_whatsapp || null,
+      etapa_jornada,
       ativa: true,
       user_id: created.user.id,
     })

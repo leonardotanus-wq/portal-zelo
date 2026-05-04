@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { etapaValida } from "@/lib/jornada";
 
 async function exigirAdmin() {
   const supabase = await createClient();
@@ -25,11 +26,15 @@ export async function atualizarRevenda(input: {
   estado: string | null;
   vendedor_nome: string | null;
   vendedor_whatsapp: string | null;
+  etapa_jornada: number;
 }) {
   const supabase = await exigirAdmin();
   const wpp = (input.vendedor_whatsapp || "").replace(/\D+/g, "");
   if (wpp && !/^55\d{10,11}$/.test(wpp)) {
     return { ok: false as const, erro: "WhatsApp inválido (use 5531999999999)." };
+  }
+  if (!etapaValida(input.etapa_jornada)) {
+    return { ok: false as const, erro: "Etapa da jornada inválida (use 1 a 6)." };
   }
 
   const { error } = await supabase
@@ -40,11 +45,13 @@ export async function atualizarRevenda(input: {
       estado: input.estado?.trim() || null,
       vendedor_nome: input.vendedor_nome?.trim() || null,
       vendedor_whatsapp: wpp || null,
+      etapa_jornada: input.etapa_jornada,
     })
     .eq("id", input.id);
 
   if (error) return { ok: false as const, erro: error.message };
   revalidatePath("/admin/revendas");
+  revalidatePath("/home");
   return { ok: true as const };
 }
 

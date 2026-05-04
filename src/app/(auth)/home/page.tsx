@@ -1,10 +1,18 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Camera } from "lucide-react";
 import { HomeCards } from "@/components/home-cards";
+import { JornadaRevenda } from "@/components/jornada-revenda";
+import { getRevendaLogada } from "@/lib/auth";
 
-export default function HomeRevenda() {
+export default async function HomeRevenda() {
+  const revenda = await getRevendaLogada();
+  if (!revenda) redirect("/");
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 md:py-10">
+      <JornadaRevenda etapaAtual={revenda.etapa_jornada ?? 3} />
+
       <Link
         href="/upload-video"
         className="group mb-8 flex items-center gap-4 rounded-2xl bg-zelo-yellow p-6 text-zelo-dark shadow-sm transition hover:brightness-95 md:p-8"

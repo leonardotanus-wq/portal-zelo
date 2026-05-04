@@ -8,6 +8,7 @@ export type Revenda = {
   vendedor_whatsapp: string | null;
   ativa: boolean;
   user_id: string | null;
+  etapa_jornada: number;
   created_at: string;
 };
 
