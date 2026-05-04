@@ -16,7 +16,7 @@ export function NoticiaCard({ noticia }: { noticia: Noticia }) {
       rel="noopener noreferrer"
       className="group flex flex-col overflow-hidden rounded-xl bg-white ring-1 ring-zinc-200 transition hover:shadow-lg hover:-translate-y-0.5"
     >
-      <div className="relative aspect-[16/9] w-full bg-zinc-100">
+      <div className="relative aspect-[16/9] w-full overflow-hidden bg-zinc-100">
         {mostrarImagem ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -27,8 +27,11 @@ export function NoticiaCard({ noticia }: { noticia: Noticia }) {
             onError={() => setImgErro(true)}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-zinc-400">
-            <Newspaper className="h-10 w-10" />
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-zelo-yellow/30 to-zinc-100 text-zelo-dark/70">
+            <Newspaper className="h-16 w-16" strokeWidth={1.5} />
+            <p className="line-clamp-1 px-4 text-center text-xs font-semibold text-zelo-dark/70">
+              {noticia.source}
+            </p>
           </div>
         )}
         <span className="absolute left-3 top-3 inline-flex max-w-[80%] truncate rounded-full bg-zelo-dark/90 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
