@@ -8,6 +8,23 @@ type MicrolinkResponse = {
   };
 };
 
+export function ehImagemLixo(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    const path = u.pathname.toLowerCase();
+
+    if (path.endsWith(".svg")) return true;
+    if (path.includes("/logo") || path.includes("/favicon")) return true;
+    if (host === "lh3.googleusercontent.com") return true;
+    if (host.includes("cdn.jsdelivr.net")) return true;
+
+    return false;
+  } catch {
+    return true;
+  }
+}
+
 async function fetchNewsImage(url: string): Promise<string | null> {
   if (!url) return null;
 
@@ -31,10 +48,10 @@ async function fetchNewsImage(url: string): Promise<string | null> {
 
     const json = (await res.json()) as MicrolinkResponse;
     const image = json?.data?.image?.url;
-    if (typeof image === "string" && image) return image;
+    if (typeof image === "string" && image && !ehImagemLixo(image)) return image;
 
     const logo = json?.data?.logo?.url;
-    if (typeof logo === "string" && logo) return logo;
+    if (typeof logo === "string" && logo && !ehImagemLixo(logo)) return logo;
 
     return null;
   } catch (err) {

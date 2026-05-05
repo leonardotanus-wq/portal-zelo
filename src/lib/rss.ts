@@ -1,6 +1,6 @@
 import Parser from "rss-parser";
 import { unstable_cache } from "next/cache";
-import { getNewsImage } from "@/lib/microlink";
+import { ehImagemLixo, getNewsImage } from "@/lib/microlink";
 
 export type Noticia = {
   id: string;
@@ -38,6 +38,7 @@ const FEEDS: { url: string; nome: string }[] = [
 type CustomItem = {
   "media:content"?: { $?: { url?: string } } | { $?: { url?: string } }[];
   enclosure?: { url?: string };
+  "imagem-destaque"?: string;
 };
 
 const parser: Parser<unknown, CustomItem> = new Parser({
@@ -46,6 +47,7 @@ const parser: Parser<unknown, CustomItem> = new Parser({
     item: [
       ["media:content", "media:content"],
       ["media:thumbnail", "media:thumbnail"],
+      ["imagem-destaque", "imagem-destaque"],
     ],
   },
   headers: {
@@ -53,6 +55,87 @@ const parser: Parser<unknown, CustomItem> = new Parser({
       "Mozilla/5.0 (compatible; ZeloPortalBot/1.0; +https://zeloprotege.com.br)",
   },
 });
+
+const USER_AGENT =
+  "Mozilla/5.0 (compatible; ZeloPortalBot/1.0; +https://portal.zeloprotege.com)";
+
+const HOSTS_BLOQUEADOS_NA_RESOLUCAO =
+  /(?:^|\.)google\.com$|(?:^|\.)googleusercontent\.com$|(?:^|\.)gstatic\.com$|(?:^|\.)youtube\.com$|(?:^|\.)youtu\.be$/i;
+
+function ehGoogleNews(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === "news.google.com" || host.endsWith(".news.google.com");
+  } catch {
+    return false;
+  }
+}
+
+function resolverUrlAbsoluta(maybeRelative: string, base: string): string | null {
+  try {
+    return new URL(maybeRelative, base).href;
+  } catch {
+    return null;
+  }
+}
+
+async function resolverLinkReal(
+  linkOriginal: string,
+  signal: AbortSignal,
+): Promise<string> {
+  if (!ehGoogleNews(linkOriginal)) return linkOriginal;
+
+  try {
+    const res = await fetch(linkOriginal, {
+      signal,
+      redirect: "follow",
+      headers: {
+        "User-Agent": USER_AGENT,
+        Accept: "text/html,application/xhtml+xml",
+      },
+    });
+
+    const finalUrl = res.url || linkOriginal;
+    if (!ehGoogleNews(finalUrl)) return finalUrl;
+
+    if (!res.ok) return linkOriginal;
+    const html = await res.text();
+
+    const canonical = html.match(
+      /<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i,
+    );
+    if (canonical?.[1]) {
+      const url = resolverUrlAbsoluta(canonical[1], finalUrl);
+      if (url && !ehGoogleNews(url)) return url;
+    }
+
+    const meta = html.match(
+      /<meta[^>]+http-equiv=["']refresh["'][^>]+content=["']\d+\s*;\s*url=([^"']+)["']/i,
+    );
+    if (meta?.[1]) {
+      const url = resolverUrlAbsoluta(meta[1], finalUrl);
+      if (url && !ehGoogleNews(url)) return url;
+    }
+
+    const aRegex = /<a\s[^>]*href=["'](https?:\/\/[^"']+)["']/gi;
+    let m: RegExpExecArray | null;
+    while ((m = aRegex.exec(html)) !== null) {
+      const candidato = m[1];
+      try {
+        const host = new URL(candidato).hostname.toLowerCase();
+        if (!HOSTS_BLOQUEADOS_NA_RESOLUCAO.test(host)) {
+          return candidato;
+        }
+      } catch {
+        // continua tentando
+      }
+    }
+
+    return linkOriginal;
+  } catch {
+    return linkOriginal;
+  }
+}
 
 function limparHtml(html: string | undefined | null): string {
   if (!html) return "";
@@ -68,29 +151,51 @@ function limparHtml(html: string | undefined | null): string {
     .trim();
 }
 
+function aceitarImagem(url: string | undefined | null): string | null {
+  if (!url) return null;
+  return ehImagemLixo(url) ? null : url;
+}
+
 function extrairImagem(item: Record<string, unknown>): string | null {
+  const imagemDestaque = item["imagem-destaque"];
+  if (typeof imagemDestaque === "string") {
+    const ok = aceitarImagem(imagemDestaque);
+    if (ok) return ok;
+  }
+
   const mediaContent = item["media:content"] as
     | { $?: { url?: string } }
     | { $?: { url?: string } }[]
     | undefined;
   if (Array.isArray(mediaContent) && mediaContent[0]?.$?.url) {
-    return mediaContent[0].$.url;
+    const ok = aceitarImagem(mediaContent[0].$.url);
+    if (ok) return ok;
   }
   if (mediaContent && !Array.isArray(mediaContent) && mediaContent.$?.url) {
-    return mediaContent.$.url;
+    const ok = aceitarImagem(mediaContent.$.url);
+    if (ok) return ok;
   }
   const mediaThumb = item["media:thumbnail"] as
     | { $?: { url?: string } }
     | undefined;
-  if (mediaThumb?.$?.url) return mediaThumb.$.url;
+  if (mediaThumb?.$?.url) {
+    const ok = aceitarImagem(mediaThumb.$.url);
+    if (ok) return ok;
+  }
 
   const enclosure = item.enclosure as { url?: string } | undefined;
-  if (enclosure?.url) return enclosure.url;
+  if (enclosure?.url) {
+    const ok = aceitarImagem(enclosure.url);
+    if (ok) return ok;
+  }
 
   const html = (item.content as string) || (item["content:encoded"] as string) ||
     (item.description as string) || "";
   const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-  if (match) return match[1];
+  if (match) {
+    const ok = aceitarImagem(match[1]);
+    if (ok) return ok;
+  }
 
   return null;
 }
@@ -140,6 +245,25 @@ async function buscarFeed(
   }
 }
 
+async function resolverImagemPara(noticia: Noticia): Promise<string | null> {
+  if (noticia.image) return noticia.image;
+  if (!noticia.link) return null;
+
+  let alvo = noticia.link;
+  if (ehGoogleNews(alvo)) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+    try {
+      alvo = await resolverLinkReal(alvo, ctrl.signal);
+    } finally {
+      clearTimeout(timer);
+    }
+    if (ehGoogleNews(alvo)) return null;
+  }
+
+  return getNewsImage(alvo);
+}
+
 async function fetchNoticias(): Promise<Noticia[]> {
   const resultados = await Promise.allSettled(
     FEEDS.map((f) => buscarFeed(f.url, f.nome)),
@@ -165,9 +289,7 @@ async function fetchNoticias(): Promise<Noticia[]> {
 
   const top = unicos.slice(0, 20);
 
-  const imagens = await Promise.all(
-    top.map((n) => (n.image || !n.link ? Promise.resolve(n.image) : getNewsImage(n.link))),
-  );
+  const imagens = await Promise.all(top.map((n) => resolverImagemPara(n)));
   top.forEach((n, i) => {
     n.image = imagens[i] ?? null;
   });
@@ -175,7 +297,7 @@ async function fetchNoticias(): Promise<Noticia[]> {
   return top;
 }
 
-export const getNoticias = unstable_cache(fetchNoticias, ["noticias-rss"], {
+export const getNoticias = unstable_cache(fetchNoticias, ["noticias-rss-v2"], {
   revalidate: 1800,
   tags: ["noticias"],
 });
