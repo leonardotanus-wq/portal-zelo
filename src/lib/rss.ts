@@ -12,28 +12,68 @@ export type Noticia = {
   image: string | null;
 };
 
-const FEEDS: { url: string; nome: string }[] = [
+type FeedConfig = {
+  url: string;
+  nome: string;
+  filtrarPorKeywords: boolean;
+};
+
+const FEEDS: FeedConfig[] = [
   {
-    url: "https://news.google.com/rss/search?q=assalto+resid%C3%AAncia&hl=pt-BR&gl=BR&ceid=BR:pt-419",
-    nome: "Google News — Assalto Residência",
+    url: "https://g1.globo.com/rss/g1/sp/",
+    nome: "G1 — São Paulo",
+    filtrarPorKeywords: true,
   },
   {
-    url: "https://news.google.com/rss/search?q=arrombamento&hl=pt-BR&gl=BR&ceid=BR:pt-419",
-    nome: "Google News — Arrombamento",
+    url: "https://g1.globo.com/rss/g1/rj/",
+    nome: "G1 — Rio de Janeiro",
+    filtrarPorKeywords: true,
   },
   {
-    url: "https://news.google.com/rss/search?q=invas%C3%A3o+casa&hl=pt-BR&gl=BR&ceid=BR:pt-419",
-    nome: "Google News — Invasão de Casa",
+    url: "https://g1.globo.com/rss/g1/mg/",
+    nome: "G1 — Minas Gerais",
+    filtrarPorKeywords: true,
   },
   {
-    url: "https://news.google.com/rss/search?q=roubo+condom%C3%ADnio&hl=pt-BR&gl=BR&ceid=BR:pt-419",
-    nome: "Google News — Roubo em Condomínio",
+    url: "https://www.metropoles.com/feed",
+    nome: "Metrópoles",
+    filtrarPorKeywords: true,
   },
   {
     url: "https://agenciabrasil.ebc.com.br/rss/justica/feed.xml",
     nome: "Agência Brasil — Justiça",
+    filtrarPorKeywords: false,
   },
 ];
+
+const KEYWORDS = [
+  "assalto", "roubo", "arrombamento", "invasao", "latrocinio", "sequestro",
+  "residencia", "residencial", "condominio", "seguranca", "ladrao", "ladroes",
+  "furto", "bandido", "crime", "policia", "pm", "gcm",
+  "preso", "presos", "prisao", "detido", "detida", "detidos",
+  "suspeito", "suspeitos",
+  "violencia", "violento", "violenta", "vitima", "ameaca",
+  "baleado", "baleada", "disparo", "tiros", "armado", "armados",
+  "fuga", "perseguicao", "droga", "drogas", "trafico", "traficante",
+  "homicidio", "agressao", "espancado",
+  "motel", "joalheria", "agencia bancaria", "comercio",
+  "posto de combustivel", "mercado", "farmacia",
+  "ronda", "batalhao", "delegacia", "bo", "boletim de ocorrencia",
+];
+
+function normalizar(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function casaKeyword(titulo: string): boolean {
+  const t = normalizar(titulo);
+  return KEYWORDS.some((kw) => new RegExp(`\\b${kw}\\b`, "i").test(t));
+}
 
 type CustomItem = {
   "media:content"?: { $?: { url?: string } } | { $?: { url?: string } }[];
@@ -55,87 +95,6 @@ const parser: Parser<unknown, CustomItem> = new Parser({
       "Mozilla/5.0 (compatible; ZeloPortalBot/1.0; +https://zeloprotege.com.br)",
   },
 });
-
-const USER_AGENT =
-  "Mozilla/5.0 (compatible; ZeloPortalBot/1.0; +https://portal.zeloprotege.com)";
-
-const HOSTS_BLOQUEADOS_NA_RESOLUCAO =
-  /(?:^|\.)google\.com$|(?:^|\.)googleusercontent\.com$|(?:^|\.)gstatic\.com$|(?:^|\.)youtube\.com$|(?:^|\.)youtu\.be$/i;
-
-function ehGoogleNews(url: string): boolean {
-  try {
-    const host = new URL(url).hostname.toLowerCase();
-    return host === "news.google.com" || host.endsWith(".news.google.com");
-  } catch {
-    return false;
-  }
-}
-
-function resolverUrlAbsoluta(maybeRelative: string, base: string): string | null {
-  try {
-    return new URL(maybeRelative, base).href;
-  } catch {
-    return null;
-  }
-}
-
-async function resolverLinkReal(
-  linkOriginal: string,
-  signal: AbortSignal,
-): Promise<string> {
-  if (!ehGoogleNews(linkOriginal)) return linkOriginal;
-
-  try {
-    const res = await fetch(linkOriginal, {
-      signal,
-      redirect: "follow",
-      headers: {
-        "User-Agent": USER_AGENT,
-        Accept: "text/html,application/xhtml+xml",
-      },
-    });
-
-    const finalUrl = res.url || linkOriginal;
-    if (!ehGoogleNews(finalUrl)) return finalUrl;
-
-    if (!res.ok) return linkOriginal;
-    const html = await res.text();
-
-    const canonical = html.match(
-      /<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i,
-    );
-    if (canonical?.[1]) {
-      const url = resolverUrlAbsoluta(canonical[1], finalUrl);
-      if (url && !ehGoogleNews(url)) return url;
-    }
-
-    const meta = html.match(
-      /<meta[^>]+http-equiv=["']refresh["'][^>]+content=["']\d+\s*;\s*url=([^"']+)["']/i,
-    );
-    if (meta?.[1]) {
-      const url = resolverUrlAbsoluta(meta[1], finalUrl);
-      if (url && !ehGoogleNews(url)) return url;
-    }
-
-    const aRegex = /<a\s[^>]*href=["'](https?:\/\/[^"']+)["']/gi;
-    let m: RegExpExecArray | null;
-    while ((m = aRegex.exec(html)) !== null) {
-      const candidato = m[1];
-      try {
-        const host = new URL(candidato).hostname.toLowerCase();
-        if (!HOSTS_BLOQUEADOS_NA_RESOLUCAO.test(host)) {
-          return candidato;
-        }
-      } catch {
-        // continua tentando
-      }
-    }
-
-    return linkOriginal;
-  } catch {
-    return linkOriginal;
-  }
-}
 
 function limparHtml(html: string | undefined | null): string {
   if (!html) return "";
@@ -200,28 +159,16 @@ function extrairImagem(item: Record<string, unknown>): string | null {
   return null;
 }
 
-function normalizarTitulo(titulo: string) {
-  return titulo
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-async function buscarFeed(
-  feedUrl: string,
-  nome: string,
-): Promise<Noticia[]> {
+async function buscarFeed(feed: FeedConfig): Promise<Noticia[]> {
   try {
-    const feed = await parser.parseURL(feedUrl);
-    return (feed.items || []).map((item) => {
+    const parsed = await parser.parseURL(feed.url);
+    const items = (parsed.items || []).map((item) => {
       const rawItem = item as Record<string, unknown>;
       const link = (rawItem.link as string) || "";
       const id =
         (rawItem.guid as string) ||
         link ||
-        `${nome}-${rawItem.title || Math.random()}`;
+        `${feed.nome}-${rawItem.title || Math.random()}`;
       return {
         id: String(id),
         title: limparHtml((rawItem.title as string) || ""),
@@ -235,39 +182,23 @@ async function buscarFeed(
           (rawItem.isoDate as string) ||
           (rawItem.pubDate as string) ||
           new Date().toISOString(),
-        source: nome,
+        source: feed.nome,
         image: extrairImagem(rawItem),
       } as Noticia;
     });
+
+    if (feed.filtrarPorKeywords) {
+      return items.filter((n) => casaKeyword(n.title));
+    }
+    return items;
   } catch (err) {
-    console.error(`[RSS] Falha em ${nome}:`, err);
+    console.error(`[RSS] Falha em ${feed.nome}:`, err);
     return [];
   }
 }
 
-async function resolverImagemPara(noticia: Noticia): Promise<string | null> {
-  if (noticia.image) return noticia.image;
-  if (!noticia.link) return null;
-
-  let alvo = noticia.link;
-  if (ehGoogleNews(alvo)) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 5000);
-    try {
-      alvo = await resolverLinkReal(alvo, ctrl.signal);
-    } finally {
-      clearTimeout(timer);
-    }
-    if (ehGoogleNews(alvo)) return null;
-  }
-
-  return getNewsImage(alvo);
-}
-
 async function fetchNoticias(): Promise<Noticia[]> {
-  const resultados = await Promise.allSettled(
-    FEEDS.map((f) => buscarFeed(f.url, f.nome)),
-  );
+  const resultados = await Promise.allSettled(FEEDS.map((f) => buscarFeed(f)));
 
   const todas: Noticia[] = [];
   for (const r of resultados) {
@@ -277,7 +208,7 @@ async function fetchNoticias(): Promise<Noticia[]> {
   const vistos = new Set<string>();
   const unicos: Noticia[] = [];
   for (const n of todas) {
-    const chave = normalizarTitulo(n.title);
+    const chave = normalizar(n.title);
     if (!chave || vistos.has(chave)) continue;
     vistos.add(chave);
     unicos.push(n);
@@ -289,7 +220,11 @@ async function fetchNoticias(): Promise<Noticia[]> {
 
   const top = unicos.slice(0, 20);
 
-  const imagens = await Promise.all(top.map((n) => resolverImagemPara(n)));
+  const imagens = await Promise.all(
+    top.map((n) =>
+      n.image || !n.link ? Promise.resolve(n.image) : getNewsImage(n.link),
+    ),
+  );
   top.forEach((n, i) => {
     n.image = imagens[i] ?? null;
   });
@@ -297,7 +232,7 @@ async function fetchNoticias(): Promise<Noticia[]> {
   return top;
 }
 
-export const getNoticias = unstable_cache(fetchNoticias, ["noticias-rss-v2"], {
+export const getNoticias = unstable_cache(fetchNoticias, ["noticias-rss-v3"], {
   revalidate: 1800,
   tags: ["noticias"],
 });
