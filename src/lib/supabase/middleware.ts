@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PATHS = ["/", "/admin/login"];
-const PUBLIC_PREFIXES = ["/api/cron/"];
+const PUBLIC_PREFIXES = ["/api/cron/", "/api/integracoes/"];
 const ADMIN_PREFIX = "/admin";
 const STATIC_PREFIXES = ["/_next", "/api/auth", "/favicon.ico"];
 
