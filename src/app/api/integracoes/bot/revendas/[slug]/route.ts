@@ -58,15 +58,50 @@ export async function PUT(
     );
   }
 
+  const patch: Record<string, unknown> = {};
+
+  if ("nome_responsavel" in body) {
+    const v = body.nome_responsavel;
+    patch.nome_responsavel =
+      v == null || (typeof v === "string" && v.trim() === "")
+        ? null
+        : v.trim();
+  }
+  if ("cidade" in body) {
+    const v = body.cidade;
+    patch.cidade =
+      v == null || (typeof v === "string" && v.trim() === "")
+        ? null
+        : v.trim();
+  }
+  if ("estado" in body) {
+    const v = body.estado;
+    patch.estado =
+      v == null || (typeof v === "string" && v.trim() === "")
+        ? null
+        : v.trim();
+  }
+  if ("vendedor_nome" in body) {
+    const v = body.vendedor_nome;
+    patch.vendedor_nome =
+      v == null || (typeof v === "string" && v.trim() === "")
+        ? null
+        : v.trim();
+  }
+  if ("vendedor_whatsapp" in body) {
+    patch.vendedor_whatsapp = wppCheck.whatsapp;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return NextResponse.json(
+      { erro: "Nenhum campo pra atualizar" },
+      { status: 400 },
+    );
+  }
+
   const { data: revenda, error: updateErr } = await adminClient
     .from("revendas")
-    .update({
-      nome_responsavel: body.nome_responsavel?.trim() || null,
-      cidade: body.cidade?.trim() || null,
-      estado: body.estado?.trim() || null,
-      vendedor_nome: body.vendedor_nome?.trim() || null,
-      vendedor_whatsapp: wppCheck.whatsapp,
-    })
+    .update(patch)
     .eq("id", existing.id)
     .select()
     .single();
