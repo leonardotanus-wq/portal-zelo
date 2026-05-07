@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { emailDaRevenda } from "@/lib/types";
 import { etapaValida } from "@/lib/jornada";
-import { randomBytes } from "node:crypto";
+import {
+  autorizar,
+  validarSlug,
+  validarWhatsapp,
+  gerarSenhaAleatoria,
+} from "@/lib/integracoes/auth";
 
 export const runtime = "nodejs";
 
@@ -15,36 +20,6 @@ type Payload = {
   vendedor_whatsapp?: string | null;
   etapa_jornada?: number;
 };
-
-const SLUG_REGEX = /^[a-z0-9]{2,40}$/;
-const WHATSAPP_REGEX = /^55\d{10,11}$/;
-
-function gerarSenhaAleatoria(): string {
-  // 16 chars alfanuméricos sem ambíguos (0/O/1/l/I).
-  const alfabeto =
-    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  const bytes = randomBytes(32);
-  let senha = "";
-  for (let i = 0; i < 16; i++) {
-    senha += alfabeto[bytes[i] % alfabeto.length];
-  }
-  return senha;
-}
-
-function autorizar(request: Request): { ok: boolean; erro?: string } {
-  const auth = request.headers.get("authorization") || "";
-  const match = auth.match(/^Bearer\s+(.+)$/);
-  if (!match) {
-    return { ok: false, erro: "Authorization header missing or malformed" };
-  }
-  const token = match[1].trim();
-  const expected = process.env.BOT_API_TOKEN;
-  if (!expected || expected.length < 32) {
-    return { ok: false, erro: "BOT_API_TOKEN não configurado no servidor" };
-  }
-  if (token !== expected) return { ok: false, erro: "Token inválido" };
-  return { ok: true };
-}
 
 export async function POST(request: Request) {
   const auth = autorizar(request);
@@ -59,24 +34,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ erro: "JSON inválido" }, { status: 400 });
   }
 
-  const nome_empresa = String(body.nome_empresa || "").trim().toLowerCase();
-  if (!SLUG_REGEX.test(nome_empresa)) {
-    return NextResponse.json(
-      { erro: "nome_empresa deve ter 2-40 caracteres minúsculos sem espaço" },
-      { status: 400 },
-    );
+  const slugCheck = validarSlug(body.nome_empresa);
+  if (!slugCheck.ok) {
+    return NextResponse.json({ erro: slugCheck.erro }, { status: 400 });
   }
+  const nome_empresa = slugCheck.slug;
 
-  const vendedor_whatsapp = String(body.vendedor_whatsapp || "").replace(
-    /\D+/g,
-    "",
-  );
-  if (vendedor_whatsapp && !WHATSAPP_REGEX.test(vendedor_whatsapp)) {
-    return NextResponse.json(
-      { erro: "vendedor_whatsapp inválido. Formato: 5531999999999" },
-      { status: 400 },
-    );
+  const wppCheck = validarWhatsapp(body.vendedor_whatsapp);
+  if (!wppCheck.ok) {
+    return NextResponse.json({ erro: wppCheck.erro }, { status: 400 });
   }
+  const vendedor_whatsapp = wppCheck.whatsapp;
 
   const etapa_jornada =
     body.etapa_jornada === undefined ? 3 : Number(body.etapa_jornada);
@@ -127,7 +95,7 @@ export async function POST(request: Request) {
       cidade: body.cidade?.trim() || null,
       estado: body.estado?.trim() || null,
       vendedor_nome: body.vendedor_nome?.trim() || null,
-      vendedor_whatsapp: vendedor_whatsapp || null,
+      vendedor_whatsapp,
       etapa_jornada,
       ativa: true,
       user_id: created.user.id,
