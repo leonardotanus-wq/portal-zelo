@@ -6,11 +6,17 @@ import {
   autorizar,
   validarSlug,
   validarWhatsapp,
+  validarSenha,
   gerarSenhaAleatoria,
 } from "@/lib/integracoes/auth";
 
 export const runtime = "nodejs";
 
+// Fase 7 Etapa 3a: payload aceita campo opcional `senha`. Quando presente,
+// usado em vez de gerar senha aleatória. Caracteres aceitos: a-z, 0-9
+// (6-40 chars). Bot vai mandar exatamente igual ao slug — login = senha
+// pra UX simples. Compat com chamadas atuais preservada: payload sem
+// `senha` continua gerando aleatória de 16 chars.
 type Payload = {
   nome_empresa: string;
   nome_responsavel?: string | null;
@@ -19,6 +25,7 @@ type Payload = {
   vendedor_nome?: string | null;
   vendedor_whatsapp?: string | null;
   etapa_jornada?: number;
+  senha?: string;
 };
 
 export async function POST(request: Request) {
@@ -55,9 +62,28 @@ export async function POST(request: Request) {
     );
   }
 
+  // Senha: se vier no payload, valida e usa; senão gera aleatória.
+  // Falha de validação retorna 422 com codigo='senha_invalida' pra o Bot
+  // distinguir desse caso de outros 400s.
+  let senha: string;
+  let senhaOrigem: "fornecida" | "gerada";
+  if (body.senha !== undefined && body.senha !== null) {
+    const senhaCheck = validarSenha(body.senha);
+    if (!senhaCheck.ok) {
+      return NextResponse.json(
+        { erro: senhaCheck.erro, codigo: "senha_invalida" },
+        { status: 422 },
+      );
+    }
+    senha = senhaCheck.senha;
+    senhaOrigem = "fornecida";
+  } else {
+    senha = gerarSenhaAleatoria();
+    senhaOrigem = "gerada";
+  }
+
   const adminClient = createAdminClient();
   const email = emailDaRevenda(nome_empresa);
-  const senha = gerarSenhaAleatoria();
 
   // Idempotência: se já existe, retorna 409 (Bot trata como "já sincronizada").
   const { data: existing } = await adminClient
@@ -108,8 +134,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ erro: insertErr.message }, { status: 500 });
   }
 
+  // Observabilidade: registra origem da senha pra auditoria. Não logamos
+  // a senha em si — apenas se veio do payload ou foi gerada.
+  console.log(
+    `[bot/revendas] revenda criada nome_empresa=${nome_empresa} senha_origem=${senhaOrigem}`,
+  );
+
   // Senha plaintext retornada UMA VEZ. Bot precisa exibir pro admin
-  // imediatamente — não há recuperação posterior.
+  // imediatamente — não há recuperação posterior. Quando senha veio do
+  // payload, devolvemos exatamente a mesma string — Bot trata o response
+  // como fonte de verdade da credencial.
   return NextResponse.json(
     {
       revenda: {

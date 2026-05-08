@@ -57,3 +57,30 @@ export function gerarSenhaAleatoria(): string {
   }
   return senha;
 }
+
+// Fase 7 Etapa 3a: Bot pode passar senha opcional no payload de criação
+// de revenda. Validação restringe aos mesmos caracteres do slug
+// ([a-z0-9]), 6-40 chars. Bot vai mandar exatamente igual ao slug
+// (decisão de produto consciente — login = senha = slug pra UX simples
+// no Portal Zelo, que não armazena dado confidencial). Mesmo alfabeto
+// minúsculo evita surpresas com Supabase Auth + facilita digitação.
+const SENHA_REGEX = /^[a-z0-9]{6,40}$/;
+
+export function validarSenha(
+  input: unknown,
+): { ok: true; senha: string } | { ok: false; erro: string } {
+  if (typeof input !== "string") {
+    return {
+      ok: false,
+      erro: "senha deve ser string com 6-40 caracteres minúsculos sem espaço",
+    };
+  }
+  const senha = input.trim();
+  if (!SENHA_REGEX.test(senha)) {
+    return {
+      ok: false,
+      erro: "senha deve ter 6-40 caracteres minúsculos (a-z, 0-9) sem espaço",
+    };
+  }
+  return { ok: true, senha };
+}

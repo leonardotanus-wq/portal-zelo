@@ -1,6 +1,39 @@
 # STATUS — Zelo Portal
 
-## 🆕 Mudanças desta rodada (2026-05-04 — Jornada da Revenda)
+## 🆕 Mudanças desta rodada (2026-05-08 — Fase 7 Etapa 3a: senha opcional no payload do Bot)
+
+### Endpoint POST /api/integracoes/bot/revendas
+
+- Payload aceita campo opcional `senha` (string). Quando presente, é usado como credencial inicial em vez de gerar senha aleatória.
+- Validação: `^[a-z0-9]{6,40}$` (mesmo alfabeto do `nome_empresa`/slug). Trim aplicado antes da validação.
+- Compatibilidade preservada: payload sem `senha` continua gerando aleatória de 16 chars (16 caracteres do alfabeto sem ambíguos — `gerarSenhaAleatoria()` intacta).
+- Resposta:
+  - 201: estrutura inalterada — `credencial.senha` devolve a string usada (vinda do payload OU gerada). Bot trata o response como fonte de verdade da credencial.
+  - 422 com `{ erro, codigo: "senha_invalida" }`: quando `senha` veio mas falhou validação. Código permite ao Bot distinguir desse caso de outros 400s.
+- Observabilidade: log `[bot/revendas]` com `senha_origem=fornecida|gerada`. Senha em si nunca aparece no log.
+
+### Por quê
+
+Fase 7 do Bot vai usar `login = senha = slug` (ex: `jkportoes`). Decisão de produto consciente — Portal Zelo não armazena dado confidencial, conta serve só pra tracking de visita e engajamento. Trade-off de UX (senha simples, fácil de lembrar/digitar pelo lead) vs segurança aceito.
+
+### Arquivos tocados
+
+- `src/lib/integracoes/auth.ts` — adiciona `validarSenha(input)` exportada.
+- `src/app/api/integracoes/bot/revendas/route.ts` — payload type ganha `senha?: string`; lógica de seleção `body.senha → validarSenha → senha; senão gerarSenhaAleatoria()`; log de origem; comentário no topo documentando o novo campo.
+
+### Não tocados
+
+- Outros endpoints (`PUT`/`desativar`/`reativar`/`resetar-senha`) ficam pra etapas seguintes do roadmap se necessário.
+- Schema Supabase: nenhuma migration nova. `auth.users.password` é o mesmo campo de antes.
+- Comportamento do admin do Portal (`/admin/revendas` criando manualmente): inalterado — só o endpoint do Bot foi tocado.
+
+### Smoke esperado pelo Bot (Etapa 3b)
+
+Quando o Bot mandar `senha: <slug>` no payload, o response 201 traz `credencial.senha = <slug>`. Bot usa pra montar a mensagem WhatsApp pro lead: `seu acesso é login=<slug> senha=<slug> em portal.zeloprotege.com`.
+
+---
+
+## Mudanças anteriores (2026-05-04 — Jornada da Revenda)
 
 ### Banco de dados
 - **Migration SQL** em `supabase/migrations/0003_jornada.sql` (NÃO executada — rodar manualmente no SQL Editor):
