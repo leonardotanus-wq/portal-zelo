@@ -376,7 +376,10 @@ export function RevendasClient({ revendas }: Props) {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-zelo-dark">Revendas</h1>
+          <div className="flex items-baseline gap-2">
+            <h1 className="text-2xl font-extrabold text-zelo-dark">Revendas</h1>
+            <span className="text-sm text-zinc-500">{revendas.length}</span>
+          </div>
           <p className="text-sm text-zinc-500">
             Cadastre, edite e ative/desative revendas.
           </p>
