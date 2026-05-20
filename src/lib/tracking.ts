@@ -24,18 +24,13 @@ export async function trackEvento(
       headersList.get("x-real-ip") ||
       null;
 
-    console.log("[tracking] tentando insert", { tipo, revenda_id: revenda.id });
-    const { data, error } = await supabase
-      .from("eventos_revenda")
-      .insert({
-        revenda_id: revenda.id,
-        tipo,
-        detalhe: detalhe ?? null,
-        user_agent: userAgent ?? null,
-        ip,
-      })
-      .select();
-    console.log("[tracking] resultado insert", { data, error });
+    await supabase.from("eventos_revenda").insert({
+      revenda_id: revenda.id,
+      tipo,
+      detalhe: detalhe ?? null,
+      user_agent: userAgent ?? null,
+      ip,
+    });
 
     if (tipo === "login") {
       await supabase.rpc("incrementar_total_logins", {
