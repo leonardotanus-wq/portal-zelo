@@ -24,13 +24,18 @@ export async function trackEvento(
       headersList.get("x-real-ip") ||
       null;
 
-    await supabase.from("eventos_revenda").insert({
-      revenda_id: revenda.id,
-      tipo,
-      detalhe: detalhe ?? null,
-      user_agent: userAgent ?? null,
-      ip,
-    });
+    console.log("[tracking] tentando insert", { tipo, revenda_id: revenda.id });
+    const { data, error } = await supabase
+      .from("eventos_revenda")
+      .insert({
+        revenda_id: revenda.id,
+        tipo,
+        detalhe: detalhe ?? null,
+        user_agent: userAgent ?? null,
+        ip,
+      })
+      .select();
+    console.log("[tracking] resultado insert", { data, error });
 
     if (tipo === "login") {
       await supabase.rpc("incrementar_total_logins", {
@@ -43,6 +48,10 @@ export async function trackEvento(
         .eq("id", revenda.id);
     }
   } catch (err) {
-    console.error("[tracking] Falha ao registrar evento:", err);
+    console.error("[tracking] ERRO em trackEvento:", {
+      tipo,
+      revenda_id: revenda.id,
+      error: err,
+    });
   }
 }
