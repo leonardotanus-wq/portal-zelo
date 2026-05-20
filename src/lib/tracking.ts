@@ -1,6 +1,6 @@
 import "server-only";
 import { headers } from "next/headers";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Revenda } from "./types";
 
 export type TipoEvento =
@@ -16,7 +16,7 @@ export async function trackEvento(
   detalhe?: string,
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const headersList = await headers();
     const userAgent = headersList.get("user-agent");
     const ip =
